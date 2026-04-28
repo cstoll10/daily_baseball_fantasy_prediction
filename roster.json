@@ -1,0 +1,14 @@
+{
+  "team_name": "My Fantasy Team",
+  "players": [
+    { "name": "Vladimir Guerrero Jr.", "team": "TOR", "pos": "1B", "start": true },
+    { "name": "Myles Straw",           "team": "TOR", "pos": "OF", "start": true },
+    { "name": "Daulton Varsho",        "team": "TOR", "pos": "OF", "start": true },
+    { "name": "Willson Contreras",     "team": "BOS", "pos": "C",  "start": true },
+    { "name": "Trevor Story",          "team": "BOS", "pos": "SS", "start": true },
+    { "name": "Jacob deGrom",          "team": "TEX", "pos": "SP", "start": true },
+    { "name": "Cam Schlittler",        "team": "NYY", "pos": "SP", "start": true }
+  ],
+  "injured_list": [],
+  "notes": "Edit this file when you add/drop players. Set start=false to bench someone."
+}
