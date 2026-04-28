@@ -1,0 +1,48 @@
+name: Daily Fantasy Optimizer Build
+
+on:
+  schedule:
+    - cron: '0 15 * * *'
+
+  push:
+    paths:
+      - 'data/BallparkPal_*.xlsx'
+      - 'roster.json'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pandas openpyxl
+
+      - name: Check for Excel files
+        run: |
+          echo "Files in /data:"
+          ls -la data/ || echo "No data directory found"
+
+      - name: Build optimizer
+        run: |
+          python scripts/build.py
+
+      - name: Commit and push updated index.html
+        run: |
+          git config --global user.name  "Fantasy Optimizer Bot"
+          git config --global user.email "bot@github-actions"
+          git add index.html
+          git diff --staged --quiet || git commit -m "Daily build: $(date +'%B %d, %Y')"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
