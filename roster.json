@@ -9,7 +9,7 @@
     { "name": "Kyle Tucker",         "team": "LAD", "pos": "OF",   "start": true  },
     { "name": "Kyle Stowers",        "team": "MIA", "pos": "OF",   "start": true  },
     { "name": "Jorge Soler",         "team": "LAA", "pos": "OF",   "start": true  },
-    { "name": "Moises Ballesteros",  "team": "CHC", "pos": "UTIL", "start": true  },
+    { "name": "Jacob Latz",          "team": "TEX", "pos": "RP",   "start": true  },
     { "name": "Kevin McGonigle",     "team": "DET", "pos": "SS",   "start": false },
     { "name": "Bryson Stott",        "team": "PHI", "pos": "2B",   "start": false },
     { "name": "Mauricio Dubon",      "team": "ATL", "pos": "OF",   "start": false },
