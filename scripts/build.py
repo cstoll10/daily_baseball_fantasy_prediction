@@ -522,8 +522,8 @@ const BUILD_DATE  = "{build_date}";
 let MR = ROSTER_DATA.players.map((p,i)=>({{...p,id:i}}));
 let CW = {{H:5,R:5,HR:7,TB:5,SB:6,OBP:4,K:6,QS:7,W:6,ERA:5,WHIP:5}};
 let MS = {{H:'close',R:'close',HR:'close',TB:'close',SB:'close',OBP:'close',K:'close',QS:'close',W:'close',ERA:'close',WHIP:'close'}};
-const IL_PLAYERS = ['Jhoan Duran','Hunter Brown'];
-const IL_NOTES   = {{'Jhoan Duran':'IL15 | RP | PHI','Hunter Brown':'IL15 | SP | HOU'}};
+const IL_PLAYERS = ['George Springer','Jhoan Duran','Hunter Brown'];
+const IL_NOTES   = {{'George Springer':'IL10 | OF | TOR','Jhoan Duran':'IL15 | RP | PHI','Hunter Brown':'IL15 | SP | HOU'}};
 
 function norm(s){{return s.toLowerCase().replace(/[^a-z0-9]/g,'');}}
 const TAKEN_NORM=TAKEN_LIST.map(norm);
@@ -871,8 +871,16 @@ def main():
 
     # Get all available dates
     available_dates = sorted(df_batters['GameDate'].unique().tolist())
-    today_str = available_dates[0] if available_dates else str(date.today())
+    today_actual = str(date.today())
+    # Use today's actual date if available, otherwise fall back to nearest future date
+    if today_actual in available_dates:
+        today_str = today_actual
+    else:
+        # Pick the closest future date
+        future = [d for d in available_dates if d >= today_actual]
+        today_str = future[0] if future else available_dates[-1]
     print(f"  Dates available: {available_dates}")
+    print(f"  Using as today: {today_str}")
 
     # Today's data
     batters_json  = process_batters_day(df_batters, today_str)
