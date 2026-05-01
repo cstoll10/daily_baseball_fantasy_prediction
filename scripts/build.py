@@ -247,11 +247,11 @@ def build_html(batters_json, pitchers_json, teams_json, games_json,
   .cv{{color:var(--accent)}}
   input[type=range]{{width:100%;height:3px;background:var(--border);-webkit-appearance:none;border-radius:2px;cursor:pointer}}
   input[type=range]::-webkit-slider-thumb{{-webkit-appearance:none;width:11px;height:11px;background:var(--accent);border-radius:50%}}
-  .main{{overflow-y:auto;display:flex;flex-direction:column}}
-  .tabs{{display:flex;border-bottom:1px solid var(--border);background:var(--surface);padding:0 12px;position:sticky;top:0;z-index:10;overflow-x:auto}}
+  .main{{display:flex;flex-direction:column;overflow:hidden}}
+  .tabs{{display:flex;border-bottom:1px solid var(--border);background:var(--surface);padding:0 12px;z-index:10;overflow-x:auto;flex-shrink:0}}
   .tab{{padding:10px 12px;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.8px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap}}
   .tab.active{{color:var(--accent);border-bottom-color:var(--accent)}}.tab:hover{{color:var(--text)}}
-  .tc{{padding:18px;flex:1}}.tp{{display:none}}.tp.active{{display:block}}
+  .tc{{padding:18px;flex:1;overflow-y:auto}}.tp{{display:none}}.tp.active{{display:block}}
   .ctrls{{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}}
   .sb{{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 11px;border-radius:5px;font-size:0.82rem;font-family:'DM Sans',sans-serif;flex:1;min-width:160px}}
   .sb:focus{{outline:none;border-color:var(--accent)}}
@@ -333,7 +333,7 @@ def build_html(batters_json, pitchers_json, teams_json, games_json,
 <body>
 <div class="header">
   <div><h1>⚾ BallparkPal Fantasy Optimizer</h1>
-  <div class="sub">ESPN H2H · {nb} Batters · {np_} Pitchers · {nd} Day(s) loaded</div></div>
+  <div class="sub">ESPN H2H | {nb} Batters | {np_} Pitchers | {nd} Day(s) loaded</div></div>
   <div style="display:flex;gap:8px;align-items:center">
     <span class="badge-date">📅 {build_date}</span>
     <span class="badge">Live Projections</span>
@@ -523,7 +523,7 @@ let MR = ROSTER_DATA.players.map((p,i)=>({{...p,id:i}}));
 let CW = {{H:5,R:5,HR:7,TB:5,SB:6,OBP:4,K:6,QS:7,W:6,ERA:5,WHIP:5}};
 let MS = {{H:'close',R:'close',HR:'close',TB:'close',SB:'close',OBP:'close',K:'close',QS:'close',W:'close',ERA:'close',WHIP:'close'}};
 const IL_PLAYERS = ['George Springer','Jhoan Duran','Hunter Brown'];
-const IL_NOTES   = {{'George Springer':'IL10 · OF · TOR','Jhoan Duran':'IL15 · RP · PHI','Hunter Brown':'IL15 · SP · HOU'}};
+const IL_NOTES   = {{'George Springer':'IL10 | OF | TOR','Jhoan Duran':'IL15 | RP | PHI','Hunter Brown':'IL15 | SP | HOU'}};
 
 function norm(s){{return s.toLowerCase().replace(/[^a-z0-9]/g,'');}}
 const TAKEN_NORM=TAKEN_LIST.map(norm);
@@ -581,7 +581,7 @@ function initGames(){{
 function renderRoster(){{
   const el=document.getElementById('rl');
   if(!MR.length){{el.innerHTML='<div style="font-size:.72rem;color:var(--text2);text-align:center;padding:10px">No players in roster.json</div>';return;}}
-  el.innerHTML=MR.map(p=>{{const isPit=['SP','RP'].includes(p.pos);const match=isPit?AP.find(x=>norm(x.FullName).includes(norm(p.name))):AB.find(x=>norm(x.FullName).includes(norm(p.name)));const sc=match?(isPit?pScore(match):bScore(match)).toFixed(1):'—';const isIL=IL_PLAYERS.includes(p.name);return`<div class="rs ${{p.start===false?'benched':'active'}}"><span class="sp-badge">${{p.pos}}</span><div style="flex:1"><div style="font-size:.8rem;font-weight:500">${{p.name}} ${{isIL?'<span class="il-badge">IL</span>':''}}</div><div style="font-size:.62rem;color:var(--text2)">${{p.team}} · <span style="color:var(--accent)">${{sc}}</span></div></div><span style="font-size:.65rem">${{p.start===false?'🪑':'▶'}}</span></div>`;}}).join('');
+  el.innerHTML=MR.map(p=>{{const isPit=['SP','RP'].includes(p.pos);const match=isPit?AP.find(x=>norm(x.FullName).includes(norm(p.name))):AB.find(x=>norm(x.FullName).includes(norm(p.name)));const sc=match?(isPit?pScore(match):bScore(match)).toFixed(1):'—';const isIL=IL_PLAYERS.includes(p.name);return`<div class="rs ${{p.start===false?'benched':'active'}}"><span class="sp-badge">${{p.pos}}</span><div style="flex:1"><div style="font-size:.8rem;font-weight:500">${{p.name}} ${{isIL?'<span class="il-badge">IL</span>':''}}</div><div style="font-size:.62rem;color:var(--text2)">${{p.team}} | <span style="color:var(--accent)">${{sc}}</span></div></div><span style="font-size:.65rem">${{p.start===false?'🪑':'▶'}}</span></div>`;}}).join('');
 }}
 
 function initTF(){{const s=document.getElementById('btf');[...new Set(AB.map(b=>b.Team))].sort().forEach(t=>{{const o=document.createElement('option');o.value=t;o.textContent=t;s.appendChild(o)}});}}
@@ -632,11 +632,11 @@ function rW(){{
   let html='';
   if(['K_pit','QS','ERA','WHIP'].includes(cat)){{
     pits.sort((a,b)=>cat==='K_pit'?b.Strikeouts-a.Strikeouts:cat==='QS'?b.QualityStart-a.QualityStart:cat==='ERA'?a.ERA_proj-b.ERA_proj:a.WHIP_proj-b.WHIP_proj);
-    html='<div class="rs2"><h3>🔥 Top Pitching Adds</h3>'+pits.slice(0,15).map(p=>{{const mr=getMatchupRating(p.Opponent,'pit');return`<div class="rc wav"><div class="rm"><div class="rn">${{p.FullName}} <span class="tb">${{p.Team}}</span> <span class="hb">${{p.PitcherHand}}</span> <span class="${{mr.cls}}">${{mr.label}}</span></div><div class="rd">vs ${{p.Opponent}} · ${{p.Innings.toFixed(1)}} IP · ${{p.Strikeouts.toFixed(1)}} K · QS:${{(p.QualityStart*100).toFixed(0)}}% · W:${{(p.WinPct*100).toFixed(0)}}% · ERA:${{p.ERA_proj.toFixed(2)}} · WHIP:${{p.WHIP_proj.toFixed(3)}}</div></div><div class="rsc">${{pScore(p).toFixed(1)}}</div></div>`;}}).join('')+'</div>';
+    html='<div class="rs2"><h3>🔥 Top Pitching Adds</h3>'+pits.slice(0,15).map(p=>{{const mr=getMatchupRating(p.Opponent,'pit');return`<div class="rc wav"><div class="rm"><div class="rn">${{p.FullName}} <span class="tb">${{p.Team}}</span> <span class="hb">${{p.PitcherHand}}</span> <span class="${{mr.cls}}">${{mr.label}}</span></div><div class="rd">vs ${{p.Opponent}} | ${{p.Innings.toFixed(1)}} IP | ${{p.Strikeouts.toFixed(1)}} K | QS:${{(p.QualityStart*100).toFixed(0)}}% | W:${{(p.WinPct*100).toFixed(0)}}% | ERA:${{p.ERA_proj.toFixed(2)}} | WHIP:${{p.WHIP_proj.toFixed(3)}}</div></div><div class="rsc">${{pScore(p).toFixed(1)}}</div></div>`;}}).join('')+'</div>';
   }}else{{
     const sf={{score:bScore,HR:b=>b.HomeRuns,SB:b=>b.SB,Hits:b=>b.Hits,Runs:b=>b.Runs,OBP:b=>b.OBP,TB:b=>b.TB}}[cat]||bScore;
     bats.sort((a,b)=>sf(b)-sf(a));
-    html='<div class="rs2"><h3>🔥 Top Batting Adds</h3>'+bats.slice(0,20).map(b=>{{const mr=getMatchupRating(b.Opponent,'bat');return`<div class="rc wav"><div class="rm"><div class="rn">${{b.FullName}} <span class="tb">${{b.Team}}</span> <span class="pb">#${{b.BattingPosition}}</span> <span class="${{mr.cls}}">${{mr.label}}</span></div><div class="rd">vs ${{b.Opponent}} · H:${{b.Hits.toFixed(3)}} R:${{b.Runs.toFixed(3)}} HR:${{b.HomeRuns.toFixed(3)}} TB:${{b.TB.toFixed(3)}} SB:${{b.SB.toFixed(3)}} OBP:${{b.OBP.toFixed(3)}}</div></div><div class="rsc">${{bScore(b).toFixed(1)}}</div></div>`;}}).join('')+'</div>';
+    html='<div class="rs2"><h3>🔥 Top Batting Adds</h3>'+bats.slice(0,20).map(b=>{{const mr=getMatchupRating(b.Opponent,'bat');return`<div class="rc wav"><div class="rm"><div class="rn">${{b.FullName}} <span class="tb">${{b.Team}}</span> <span class="pb">#${{b.BattingPosition}}</span> <span class="${{mr.cls}}">${{mr.label}}</span></div><div class="rd">vs ${{b.Opponent}} | H:${{b.Hits.toFixed(3)}} R:${{b.Runs.toFixed(3)}} HR:${{b.HomeRuns.toFixed(3)}} TB:${{b.TB.toFixed(3)}} SB:${{b.SB.toFixed(3)}} OBP:${{b.OBP.toFixed(3)}}</div></div><div class="rsc">${{bScore(b).toFixed(1)}}</div></div>`;}}).join('')+'</div>';
   }}
   document.getElementById('wo').innerHTML=html;
 }}
@@ -659,7 +659,7 @@ function initWeekly(){{
       const allK=mr?Object.values(TM).map(t=>t.k):[];
       const avgK=allK.length?allK.reduce((a,b)=>a+b,0)/allK.length:5;
       const dotCls=mr&&mr.k>avgK*1.15?'tough':mr&&mr.k<avgK*0.85?'easy':'avg';
-      return`<span class="start-dot ${{dotCls}}" title="${{d}}: vs ${{s.opp}} · ${{s.ip}} IP · ${{s.k}} K · QS:${{(s.qs*100).toFixed(0)}}% · ERA:${{s.era}}"></span>`;
+      return`<span class="start-dot ${{dotCls}}" title="${{d}}: vs ${{s.opp}} | ${{s.ip}} IP | ${{s.k}} K | QS:${{(s.qs*100).toFixed(0)}}% | ERA:${{s.era}}"></span>`;
     }}).join('');
     return`<div class="pitcher-week-card ${{cardCls}}">
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -746,7 +746,7 @@ function selectStreamDay(d,el){{
       <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--text2);min-width:28px">${{i+1}}</div>
       <div class="rm">
         <div class="rn">${{p.name}} <span class="tb">${{p.team}}</span> <span class="hb">${{p.hand}}</span> <span class="${{p.mCls}}">${{p.mLabel}} matchup</span></div>
-        <div class="rd">vs ${{p.opp}} · ${{p.ip}} IP · ${{p.k}} K · QS:${{(p.qs*100).toFixed(0)}}% · W:${{(p.win*100).toFixed(0)}}% · ERA:${{p.era}} · WHIP:${{p.whip}}</div>
+        <div class="rd">vs ${{p.opp}} | ${{p.ip}} IP | ${{p.k}} K | QS:${{(p.qs*100).toFixed(0)}}% | W:${{(p.win*100).toFixed(0)}}% | ERA:${{p.era}} | WHIP:${{p.whip}}</div>
         <div style="font-size:.65rem;margin-top:3px">${{grade}}</div>
       </div>
       <div class="rsc">${{p.sc.toFixed(1)}}</div>
@@ -796,7 +796,7 @@ function resetH2H(){{H2H_CATS.forEach(c=>{{const mi=document.getElementById('h2h
 function runMgmt(){{
   let html='';
   const ilPlayers=MR.filter(r=>IL_PLAYERS.includes(r.name));
-  if(ilPlayers.length){{html+=`<div class="rs2"><h3>🏥 IL Monitor</h3>`;ilPlayers.forEach(p=>{{html+=`<div class="rc sit"><div class="rm"><div class="rn"><span class="il-badge">IL</span> &nbsp;${{p.name}}</div><div class="rd">${{IL_NOTES[p.name]||'On injured list'}} · Update roster.json when activated</div></div></div>`;}});html+='</div>';}}
+  if(ilPlayers.length){{html+=`<div class="rs2"><h3>🏥 IL Monitor</h3>`;ilPlayers.forEach(p=>{{html+=`<div class="rc sit"><div class="rm"><div class="rn"><span class="il-badge">IL</span> &nbsp;${{p.name}}</div><div class="rd">${{IL_NOTES[p.name]||'On injured list'}} | Update roster.json when activated</div></div></div>`;}});html+='</div>';}}
   const sB=[...AB].map(b=>({{...b,score:bScore(b)}})).sort((a,b)=>b.score-a.score);
   const sP=[...AP].map(p=>({{...p,score:pScore(p)}})).sort((a,b)=>b.score-a.score);
   const myBat=MR.filter(r=>!['SP','RP'].includes(r.pos)&&r.start!==false).map(r=>{{const m=AB.find(b=>norm(b.FullName).includes(norm(r.name)));return m?{{...m,score:bScore(m),rPos:r.pos}}:null;}}).filter(Boolean).sort((a,b)=>a.score-b.score);
@@ -805,8 +805,8 @@ function runMgmt(){{
   const freePit=sP.filter(p=>isFreeAgent(p.FullName));
   html+=`<div class="rs2"><h3>🔄 Add / Drop Suggestions</h3>`;
   let suggestions=0;
-  myBat.slice(0,3).forEach(mine=>{{const better=freeBat.find(f=>f.score>mine.score*1.2);if(better){{suggestions++;html+=`<div class="rc wav"><div class="rm"><div class="rn">DROP <span style="color:var(--red)">${{mine.FullName}}</span> → ADD <span style="color:var(--accent3)">${{better.FullName}}</span> <span class="tb">${{better.Team}}</span></div><div class="rd">Yours: ${{mine.score.toFixed(1)}} · H:${{mine.Hits.toFixed(3)}} HR:${{mine.HomeRuns.toFixed(3)}} OBP:${{mine.OBP.toFixed(3)}}</div><div class="rd" style="color:var(--accent3)">Add: ${{better.score.toFixed(1)}} · H:${{better.Hits.toFixed(3)}} HR:${{better.HomeRuns.toFixed(3)}} OBP:${{better.OBP.toFixed(3)}} · #${{better.BattingPosition}} vs ${{better.Opponent}}</div></div><div style="text-align:right"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent3)">+${{(better.score-mine.score).toFixed(1)}}</div><div style="font-size:.62rem;color:var(--text2)">upgrade</div></div></div>`;}}}});
-  myPit.filter(p=>p.rPos==='SP').slice(0,2).forEach(mine=>{{const better=freePit.find(f=>f.score>mine.score*1.2&&f.QualityStart>=.3);if(better){{suggestions++;html+=`<div class="rc wav"><div class="rm"><div class="rn">DROP <span style="color:var(--red)">${{mine.FullName}}</span> → ADD <span style="color:var(--accent3)">${{better.FullName}}</span> <span class="tb">${{better.Team}}</span></div><div class="rd">Yours: ${{mine.score.toFixed(1)}} · ${{mine.Strikeouts.toFixed(1)}} K · QS:${{(mine.QualityStart*100).toFixed(0)}}% · ERA:${{mine.ERA_proj.toFixed(2)}}</div><div class="rd" style="color:var(--accent3)">Add: ${{better.score.toFixed(1)}} · ${{better.Strikeouts.toFixed(1)}} K · QS:${{(better.QualityStart*100).toFixed(0)}}% · ERA:${{better.ERA_proj.toFixed(2)}} · vs ${{better.Opponent}}</div></div><div style="text-align:right"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent3)">+${{(better.score-mine.score).toFixed(1)}}</div><div style="font-size:.62rem;color:var(--text2)">upgrade</div></div></div>`;}}}});
+  myBat.slice(0,3).forEach(mine=>{{const better=freeBat.find(f=>f.score>mine.score*1.2);if(better){{suggestions++;html+=`<div class="rc wav"><div class="rm"><div class="rn">DROP <span style="color:var(--red)">${{mine.FullName}}</span> → ADD <span style="color:var(--accent3)">${{better.FullName}}</span> <span class="tb">${{better.Team}}</span></div><div class="rd">Yours: ${{mine.score.toFixed(1)}} | H:${{mine.Hits.toFixed(3)}} HR:${{mine.HomeRuns.toFixed(3)}} OBP:${{mine.OBP.toFixed(3)}}</div><div class="rd" style="color:var(--accent3)">Add: ${{better.score.toFixed(1)}} | H:${{better.Hits.toFixed(3)}} HR:${{better.HomeRuns.toFixed(3)}} OBP:${{better.OBP.toFixed(3)}} | #${{better.BattingPosition}} vs ${{better.Opponent}}</div></div><div style="text-align:right"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent3)">+${{(better.score-mine.score).toFixed(1)}}</div><div style="font-size:.62rem;color:var(--text2)">upgrade</div></div></div>`;}}}});
+  myPit.filter(p=>p.rPos==='SP').slice(0,2).forEach(mine=>{{const better=freePit.find(f=>f.score>mine.score*1.2&&f.QualityStart>=.3);if(better){{suggestions++;html+=`<div class="rc wav"><div class="rm"><div class="rn">DROP <span style="color:var(--red)">${{mine.FullName}}</span> → ADD <span style="color:var(--accent3)">${{better.FullName}}</span> <span class="tb">${{better.Team}}</span></div><div class="rd">Yours: ${{mine.score.toFixed(1)}} | ${{mine.Strikeouts.toFixed(1)}} K | QS:${{(mine.QualityStart*100).toFixed(0)}}% | ERA:${{mine.ERA_proj.toFixed(2)}}</div><div class="rd" style="color:var(--accent3)">Add: ${{better.score.toFixed(1)}} | ${{better.Strikeouts.toFixed(1)}} K | QS:${{(better.QualityStart*100).toFixed(0)}}% | ERA:${{better.ERA_proj.toFixed(2)}} | vs ${{better.Opponent}}</div></div><div style="text-align:right"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent3)">+${{(better.score-mine.score).toFixed(1)}}</div><div style="font-size:.62rem;color:var(--text2)">upgrade</div></div></div>`;}}}});
   if(!suggestions)html+=`<div style="font-size:.8rem;color:var(--text2);padding:10px">✓ No obvious upgrades today — your roster looks solid</div>`;
   html+='</div>';
   document.getElementById('mgmt-out').innerHTML=html;
@@ -819,7 +819,7 @@ function runOpt(){{
   const myBat=MR.filter(r=>!['SP','RP'].includes(r.pos)).map(r=>{{const m=AB.find(b=>norm(b.FullName).includes(norm(r.name)));return m?{{...m,start:r.start!==false}}:null;}}).filter(Boolean);
   const myPit=MR.filter(r=>['SP','RP'].includes(r.pos)).map(r=>{{const m=AP.find(p=>norm(p.FullName).includes(norm(r.name)));return m?{{...m,start:r.start!==false}}:null;}}).filter(Boolean);
   const bSS=myBat.map(b=>{{const sc=bScore(b);const rank=sB.findIndex(x=>x.PlayerId===b.PlayerId)+1;const pct=rank/sB.length;return{{...b,score:sc,rank,action:pct<.15?'START':pct<.45?'CONSIDER':'SIT'}};}});
-  const pSS=myPit.map(p=>{{const sc=pScore(p);const rank=sP.findIndex(x=>x.PlayerId===p.PlayerId)+1;const pct=rank/sP.length;return{{...p,score:sc,rank,action:pct<.25?'START':pct<.55?'CONSIDER':'SIT'}};}});
+  const pSS=myPit.map(p=>{{const sc=pScore(p);const rank=sP.findIndex(x=>x.PlayerId===p.PlayerId)+1;const pct=rank>0?rank/sP.length:1;const action=rank===0?'NO START':pct<.25?'START':pct<.55?'CONSIDER':'SIT';return{{...p,score:sc,rank,action}};}});
   const wB=sB.filter(b=>isFreeAgent(b.FullName)).slice(0,5);
   const wP=sP.filter(p=>isFreeAgent(p.FullName)).slice(0,5);
   const tH=sB[0],tHR=[...sB].sort((a,b)=>b.HomeRuns-a.HomeRuns)[0],tSB=[...sB].sort((a,b)=>b.SB-a.SB)[0],tO=[...sB].sort((a,b)=>b.OBP-a.OBP)[0],tK=sP[0],tQ=[...sP].sort((a,b)=>b.QualityStart-a.QualityStart)[0];
@@ -830,18 +830,22 @@ function runOpt(){{
   if(bSS.length||pSS.length){{
     html+=`<div class="rs2"><h3>🎯 Start / Sit — Your Roster</h3>`;
     [...bSS,...pSS].sort((a,b)=>b.score-a.score).forEach(x=>{{
+      if(x.action==='NO START'){{
+        html+=`<div class="rc"><div class="rm"><div class="rn"><span class="ttk">NO START</span> &nbsp;${{x.FullName}} <span class="tb">${{x.Team}}</span></div><div class="rd">Not scheduled to start today per BallparkPal</div></div></div>`;
+        return;
+      }}
       const tc=x.action==='START'?'ts':x.action==='SIT'?'tsi':'tw';
       const rc=x.action==='START'?'str':x.action==='SIT'?'sit':'';
       const ip='ERA_proj'in x;const mr=getMatchupRating(x.Opponent,ip?'pit':'bat');
-      const dt=ip?`vs ${{x.Opponent}} ${{mr.label}} · ${{x.Innings.toFixed(1)}} IP · ${{x.Strikeouts.toFixed(1)}} K · QS:${{(x.QualityStart*100).toFixed(0)}}% · W:${{(x.WinPct*100).toFixed(0)}}% · ERA:${{x.ERA_proj.toFixed(2)}} · WHIP:${{x.WHIP_proj.toFixed(3)}}`:
-              `Bat #${{x.BattingPosition}} vs ${{x.Opponent}} ${{mr.label}} · H:${{x.Hits.toFixed(3)}} R:${{x.Runs.toFixed(3)}} HR:${{x.HomeRuns.toFixed(3)}} TB:${{x.TB.toFixed(3)}} SB:${{x.SB.toFixed(3)}} OBP:${{x.OBP.toFixed(3)}}`;
-      html+=`<div class="rc ${{rc}}"><div class="rm"><div class="rn"><span class="${{tc}}">${{x.action}}</span> &nbsp;${{x.FullName}} <span class="tb">${{x.Team}}</span> <span class="${{mr.cls}}">${{mr.label}}</span> <span style="font-size:.65rem;color:var(--text2)">#${{x.rank}} overall</span></div><div class="rd">${{dt}}</div></div><div class="rsc">${{x.score.toFixed(1)}}</div></div>`;
+      const dt=ip?`vs ${{x.Opponent}} (${{mr.label}} matchup) | ${{x.Innings.toFixed(1)}} IP | ${{x.Strikeouts.toFixed(1)}} K | QS:${{(x.QualityStart*100).toFixed(0)}}% | W:${{(x.WinPct*100).toFixed(0)}}% | ERA:${{x.ERA_proj.toFixed(2)}} | WHIP:${{x.WHIP_proj.toFixed(3)}}`:
+              `Bat #${{x.BattingPosition}} vs ${{x.Opponent}} (${{mr.label}} matchup) | H:${{x.Hits.toFixed(3)}} R:${{x.Runs.toFixed(3)}} HR:${{x.HomeRuns.toFixed(3)}} TB:${{x.TB.toFixed(3)}} SB:${{x.SB.toFixed(3)}} OBP:${{x.OBP.toFixed(3)}}`;
+      html+=`<div class="rc ${{rc}}"><div class="rm"><div class="rn"><span class="${{tc}}">${{x.action}}</span> &nbsp;${{x.FullName}} <span class="tb">${{x.Team}}</span> <span class="${{mr.cls}}">vs ${{x.Opponent}} (${{mr.label}})</span> <span style="font-size:.65rem;color:var(--text2)">#${{x.rank}} overall</span></div><div class="rd">${{dt}}</div></div><div class="rsc">${{x.score.toFixed(1)}}</div></div>`;
     }});
     html+='</div>';
   }}
   html+=`<div class="rs2"><h3>🔥 Top Waiver Wire Adds Today</h3>`;
-  wB.forEach(b=>{{const mr=getMatchupRating(b.Opponent,'bat');html+=`<div class="rc wav"><div class="rm"><div class="rn"><span class="tw">BATTER</span> &nbsp;${{b.FullName}} <span class="tb">${{b.Team}}</span> <span class="pb">#${{b.BattingPosition}}</span> <span class="${{mr.cls}}">${{mr.label}}</span></div><div class="rd">vs ${{b.Opponent}} · H:${{b.Hits.toFixed(3)}} R:${{b.Runs.toFixed(3)}} HR:${{b.HomeRuns.toFixed(3)}} TB:${{b.TB.toFixed(3)}} SB:${{b.SB.toFixed(3)}} OBP:${{b.OBP.toFixed(3)}}</div></div><div class="rsc">${{b.score.toFixed(1)}}</div></div>`;}});
-  wP.forEach(p=>{{const mr=getMatchupRating(p.Opponent,'pit');html+=`<div class="rc wav"><div class="rm"><div class="rn"><span class="tw">PITCHER</span> &nbsp;${{p.FullName}} <span class="tb">${{p.Team}}</span> <span class="hb">${{p.PitcherHand}}</span> <span class="${{mr.cls}}">${{mr.label}}</span></div><div class="rd">vs ${{p.Opponent}} · ${{p.Innings.toFixed(1)}} IP · ${{p.Strikeouts.toFixed(1)}} K · QS:${{(p.QualityStart*100).toFixed(0)}}% · W:${{(p.WinPct*100).toFixed(0)}}% · ERA:${{p.ERA_proj.toFixed(2)}} · WHIP:${{p.WHIP_proj.toFixed(3)}}</div></div><div class="rsc">${{p.score.toFixed(1)}}</div></div>`;}});
+  wB.forEach(b=>{{const mr=getMatchupRating(b.Opponent,'bat');html+=`<div class="rc wav"><div class="rm"><div class="rn"><span class="tw">BATTER</span> &nbsp;${{b.FullName}} <span class="tb">${{b.Team}}</span> <span class="pb">#${{b.BattingPosition}}</span> <span class="${{mr.cls}}">${{mr.label}}</span></div><div class="rd">vs ${{b.Opponent}} | H:${{b.Hits.toFixed(3)}} R:${{b.Runs.toFixed(3)}} HR:${{b.HomeRuns.toFixed(3)}} TB:${{b.TB.toFixed(3)}} SB:${{b.SB.toFixed(3)}} OBP:${{b.OBP.toFixed(3)}}</div></div><div class="rsc">${{b.score.toFixed(1)}}</div></div>`;}});
+  wP.forEach(p=>{{const mr=getMatchupRating(p.Opponent,'pit');html+=`<div class="rc wav"><div class="rm"><div class="rn"><span class="tw">PITCHER</span> &nbsp;${{p.FullName}} <span class="tb">${{p.Team}}</span> <span class="hb">${{p.PitcherHand}}</span> <span class="${{mr.cls}}">${{mr.label}}</span></div><div class="rd">vs ${{p.Opponent}} | ${{p.Innings.toFixed(1)}} IP | ${{p.Strikeouts.toFixed(1)}} K | QS:${{(p.QualityStart*100).toFixed(0)}}% | W:${{(p.WinPct*100).toFixed(0)}}% | ERA:${{p.ERA_proj.toFixed(2)}} | WHIP:${{p.WHIP_proj.toFixed(3)}}</div></div><div class="rsc">${{p.score.toFixed(1)}}</div></div>`;}});
   html+='</div>';
   document.getElementById('oo').innerHTML=html;
 }}
