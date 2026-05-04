@@ -471,6 +471,15 @@ function renderRoster(){
 
 function initTF(){const s=document.getElementById('btf');[...new Set(AB.map(b=>b.Team))].sort().forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;s.appendChild(o)});}
 
+
+function batterMatchupCell(opp) {
+  const bm = getBatterMatchup(opp);
+  if (!bm.pitcher) return '<span class="mup-avg">?</span>';
+  const lastName = bm.pitcher.FullName.split(' ').pop();
+  const hand = bm.pitcher.PitcherHand;
+  return '<span class="' + bm.cls + '">' + bm.label + '</span> <span style="font-size:.62rem;color:var(--text2)">' + lastName + '(' + hand + ')</span>';
+}
+
 function rB(){
   let d=[...AB];
   const sr=(document.getElementById('bs')?.value||'').toLowerCase();
@@ -489,7 +498,7 @@ function rB(){
   if(hnd)d=d.filter(b=>pitHands[b.Opponent]===hnd);
   d.sort((a,b)=>sk==='score'?bScore(b)-bScore(a):b[sk]-a[sk]);
   const mH=Math.max(...d.map(b=>b.Hits),.001);
-  document.getElementById('btb').innerHTML=d.map(b=>{const sc=bScore(b).toFixed(1);const rc=rowClass(b.FullName);const bw=((b.Hits/mH)*40).toFixed(0);return`<tr class="${rc}"><td class="sc">${sc}</td><td style="font-weight:500;white-space:nowrap">${b.FullName}</td><td>${statusTag(b.FullName)}</td><td><span class="tb">${b.Team}</span></td><td style="color:var(--text2);font-size:.72rem">vs ${b.Opponent}</td><td>${(()=>{const bm=getBatterMatchup(b.Opponent);const pn=bm.pitcher?(bm.pitcher.FullName.split(' ').pop()+'('+bm.pitcher.PitcherHand+')'):'?';return '<span class="'+bm.cls+'">'+bm.label+'</span> <span style="font-size:.62rem;color:var(--text2)">'+pn+'</span>';})()}</td><td><span class="pb">${b.BattingPosition}</span></td><td><div style="display:flex;align-items:center;gap:4px"><div style="height:3px;border-radius:2px;background:var(--accent);width:${bw}px;min-width:2px"></div><span class="sv ${cs(b.Hits,.6,.8,1)}">${b.Hits.toFixed(3)}</span></div></td><td class="sv ${cs(b.Runs,.3,.45,.55)}">${b.Runs.toFixed(3)}</td><td class="sv ${cs(b.HomeRuns,.08,.13,.18)}">${b.HomeRuns.toFixed(3)}</td><td class="sv ${cs(b.TB,1,1.4,1.7)}">${b.TB.toFixed(3)}</td><td class="sv ${cs(b.SB,.01,.05,.12)}">${b.SB.toFixed(3)}</td><td class="sv ${cs(b.OBP,.28,.33,.38)}">${b.OBP.toFixed(3)}</td><td style="color:var(--text2);font-size:.72rem">${b.PlateAppearances.toFixed(1)}</td></tr>`;}).join('');
+  document.getElementById('btb').innerHTML=d.map(b=>{const sc=bScore(b).toFixed(1);const rc=rowClass(b.FullName);const bw=((b.Hits/mH)*40).toFixed(0);return`<tr class="${rc}"><td class="sc">${sc}</td><td style="font-weight:500;white-space:nowrap">${b.FullName}</td><td>${statusTag(b.FullName)}</td><td><span class="tb">${b.Team}</span></td><td style="color:var(--text2);font-size:.72rem">vs ${b.Opponent}</td><td>${batterMatchupCell(b.Opponent)}</td><td><span class="pb">${b.BattingPosition}</span></td><td><div style="display:flex;align-items:center;gap:4px"><div style="height:3px;border-radius:2px;background:var(--accent);width:${bw}px;min-width:2px"></div><span class="sv ${cs(b.Hits,.6,.8,1)}">${b.Hits.toFixed(3)}</span></div></td><td class="sv ${cs(b.Runs,.3,.45,.55)}">${b.Runs.toFixed(3)}</td><td class="sv ${cs(b.HomeRuns,.08,.13,.18)}">${b.HomeRuns.toFixed(3)}</td><td class="sv ${cs(b.TB,1,1.4,1.7)}">${b.TB.toFixed(3)}</td><td class="sv ${cs(b.SB,.01,.05,.12)}">${b.SB.toFixed(3)}</td><td class="sv ${cs(b.OBP,.28,.33,.38)}">${b.OBP.toFixed(3)}</td><td style="color:var(--text2);font-size:.72rem">${b.PlateAppearances.toFixed(1)}</td></tr>`;}).join('');
 }
 
 function rP(){
@@ -532,7 +541,7 @@ function initWeekly(){
   // Pitcher starts cards
   const el=document.getElementById('wp-cards');
   if(!Object.keys(WP).length){
-    el.innerHTML='<div class="es"><div class="ic">⚾</div><div>No rostered pitchers found in today's data</div><div style="font-size:.75rem;margin-top:8px;color:var(--text2)">Make sure your pitcher names in roster.json match BallparkPal exactly. Upload multiple days for the full weekly schedule.</div></div>';
+    el.innerHTML='<div class="es"><div class="ic">⚾</div><div>No pitchers from your roster found in todays data. Upload multiple days for full weekly schedule.</div></div>';
     return;
   }
   // Use all dates in WP data (includes future starts), not just today
