@@ -226,8 +226,9 @@ def load_taken():
 
 def build_html(batters_json, pitchers_json, teams_json, games_json,
                weekly_pitchers, weekly_batters, streaming_by_day,
-               roster, taken, build_date, available_dates):
+               roster, taken, build_date, available_dates, build_date_iso):
 
+    build_date_iso = available_dates[0] if available_dates else str(date.today())
     b   = json.dumps(batters_json)
     p   = json.dumps(pitchers_json)
     tm  = json.dumps(teams_json)
@@ -303,7 +304,10 @@ def build_html(batters_json, pitchers_json, teams_json, games_json,
   .ta{{background:rgba(0,212,255,.1);color:var(--accent);padding:1px 5px;border-radius:3px;font-size:0.62rem;font-weight:600}}
   .ttk{{background:rgba(148,163,184,.1);color:var(--text2);padding:1px 5px;border-radius:3px;font-size:0.62rem;font-weight:600}}
   .mup-easy{{background:rgba(57,211,83,.15);color:var(--accent3);padding:1px 5px;border-radius:3px;font-size:0.62rem;font-weight:600}}
-  .mup-avg{{background:rgba(251,191,36,.15);color:var(--gold);padding:1px 5px;border-radius:3px;font-size:0.62rem;font-weight:600}}
+  .mup-easy{{background:rgba(57,211,83,.15);color:var(--accent3);padding:1px 5px;border-radius:3px;font-size:0.62rem;font-weight:600}}
+  .mup-fav{{background:rgba(57,211,83,.08);color:#7ee8a2;padding:1px 5px;border-radius:3px;font-size:0.62rem;font-weight:600}}
+  .mup-avg{{background:rgba(148,163,184,.1);color:var(--text2);padding:1px 5px;border-radius:3px;font-size:0.62rem;font-weight:600}}
+  .mup-hard{{background:rgba(248,113,113,.08);color:#fca5a5;padding:1px 5px;border-radius:3px;font-size:0.62rem;font-weight:600}}
   .mup-tough{{background:rgba(248,113,113,.15);color:var(--red);padding:1px 5px;border-radius:3px;font-size:0.62rem;font-weight:600}}
   .sg{{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:18px}}
   .sc2{{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:11px;text-align:center}}
@@ -411,6 +415,13 @@ def build_html(batters_json, pitchers_json, teams_json, games_json,
       </div>
 
       <div id="tp-bat" class="tp">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:.65rem;font-weight:600;margin-bottom:8px;align-items:center">
+          <span style="color:var(--text2);font-size:.65rem">Matchup:</span>
+          <span class="mup-easy">Easy</span><span class="mup-fav">Fav</span>
+          <span class="mup-avg">Avg</span><span class="mup-hard">Hard</span>
+          <span class="mup-tough">Tough</span>
+          <span style="color:var(--text2);font-size:.62rem;margin-left:4px">based on opposing SP ERA/K9 vs league avg</span>
+        </div>
         <div class="filter-row">
           <label><input type="checkbox" id="f-top6" onchange="rB()"> Top order (1-6)</label>
           <label><input type="checkbox" id="f-home" onchange="rB()"> Home only</label>
@@ -496,7 +507,14 @@ def build_html(batters_json, pitchers_json, teams_json, games_json,
       <div id="tp-stream" class="tp">
         <div style="margin-bottom:14px">
           <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px">SP Streaming Targets</h2>
-          <div style="font-size:.72rem;color:var(--text2)">Free agent starters by day — ranked by stuff + matchup</div>
+          <div style="font-size:.72rem;color:var(--text2);margin-bottom:8px">Free agent starters by day — ranked by stuff + matchup difficulty</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:.68rem;font-weight:600">
+            <span class="mup-easy">Easy — weak pitcher (&gt;1σ ERA)</span>
+            <span class="mup-fav">Fav — slightly weak</span>
+            <span class="mup-avg">Avg — neutral matchup</span>
+            <span class="mup-hard">Hard — slightly tough</span>
+            <span class="mup-tough">Tough — elite pitcher (&gt;1σ)</span>
+          </div>
         </div>
         <div class="day-tabs" id="stream-day-tabs"></div>
         <div id="stream-out"></div>
@@ -542,6 +560,7 @@ const ROSTER_DATA = {r};
 const TAKEN_LIST  = {t};
 const AVAILABLE_DATES = {dates_js};
 const BUILD_DATE  = "{build_date}";
+const BUILD_DATE_ISO = "{build_date_iso}";
 
 let MR = ROSTER_DATA.players.map((p,i)=>({{...p,id:i}}));
 let CW = {{H:5,R:5,HR:7,TB:5,SB:6,OBP:4,K:6,QS:7,W:6,ERA:5,WHIP:5}};
@@ -603,8 +622,8 @@ function getBatterMatchup(battingTeam) {{
   let label, cls;
   if (combo > 1.0)       {{ label = 'Easy';  cls = 'mup-easy'; }}
   else if (combo < -1.0) {{ label = 'Tough'; cls = 'mup-tough'; }}
-  else if (combo > 0.4)  {{ label = 'Fav';   cls = 'mup-avg'; }}
-  else if (combo < -0.4) {{ label = 'Hard';  cls = 'mup-avg'; }}
+  else if (combo > 0.4)  {{ label = 'Fav';   cls = 'mup-fav'; }}
+  else if (combo < -0.4) {{ label = 'Hard';  cls = 'mup-hard'; }}
   else                   {{ label = 'Avg';   cls = 'mup-avg'; }}
 
   return {{ label, cls, score: combo, pitcher }};
@@ -623,8 +642,8 @@ function getPitcherMatchup(opponentTeam) {{
   let label, cls;
   if (z > 1.0)       {{ label = 'Tough'; cls = 'mup-tough'; }}
   else if (z < -1.0) {{ label = 'Easy';  cls = 'mup-easy'; }}
-  else if (z > 0.4)  {{ label = 'Hard';  cls = 'mup-avg'; }}
-  else if (z < -0.4) {{ label = 'Fav';   cls = 'mup-avg'; }}
+  else if (z > 0.4)  {{ label = 'Hard';  cls = 'mup-hard'; }}
+  else if (z < -0.4) {{ label = 'Fav';   cls = 'mup-fav'; }}
   else               {{ label = 'Avg';   cls = 'mup-avg'; }}
 
   return {{ label, cls, score: -z }};
@@ -648,8 +667,8 @@ function bScore(b) {{
   // Matchup bonus: based on opposing pitcher ERA/K9 vs league avg
   // Kept small (max ±10%) since BallparkPal projections already include pitcher
   const mr = getBatterMatchup(b.Opponent);
-  const mBonus = mr.label==='Easy' ? 1.10 : mr.label==='Tough' ? 0.92 :
-                 mr.label==='Fav'  ? 1.05 : mr.label==='Hard'  ? 0.96 : 1.0;
+  const mBonus = mr.label==='Easy' ? 1.10 : mr.label==='Fav'  ? 1.05 :
+                 mr.label==='Hard' ? 0.96 : mr.label==='Tough' ? 0.92 : 1.0;
 
   // Platoon bonus: batter hand vs pitcher hand (not in BallparkPal projections)
   const pitcher = mr.pitcher;
@@ -854,10 +873,13 @@ let currentStreamDay='';
 function initStream(){{
   const dates=Object.keys(SD).sort();
   if(!dates.length){{document.getElementById('stream-out').innerHTML='<div class="es"><div>Upload multiple days of BallparkPal data to see streaming targets by day</div></div>';return;}}
+  // Start on today or nearest future date
+  const todayStr=BUILD_DATE_ISO;
+  const startDate=dates.find(d=>d>=todayStr)||dates[0];
   const tabsEl=document.getElementById('stream-day-tabs');
-  tabsEl.innerHTML=dates.map((d,i)=>{{
+  tabsEl.innerHTML=dates.map(d=>{{
     const label=new Date(d+'T12:00:00').toLocaleDateString('en-US',{{weekday:'short',month:'short',day:'numeric'}});
-    return`<div class="day-tab ${{i===0?'active':''}}" onclick="selectStreamDay('${{d}}',this)">${{label}}</div>`;
+    return`<div class="day-tab ${{d===startDate?'active':''}}" onclick="selectStreamDay('${{d}}',this)">${{label}}</div>`;
   }}).join('');
   selectStreamDay(dates[0], tabsEl.querySelector('.day-tab'));
 }}
@@ -890,7 +912,7 @@ function selectStreamDay(d,el){{
     return`<div class="rc ${{i<3?'str':i<6?'':'sit'}}">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--text2);min-width:28px">${{i+1}}</div>
       <div class="rm">
-        <div class="rn">${{p.name}} <span class="tb">${{p.team}}</span> <span class="hb">${{p.hand}}</span> <span class="${{p.mCls}}">${{p.mLabel}})</span></div>
+        <div class="rn">${{p.name}} <span class="tb">${{p.team}}</span> <span class="hb">${{p.hand}}</span> <span class="${{p.mCls}}">${{p.mLabel}}</span></div>
         <div class="rd">vs ${{p.opp}} | ${{p.ip}} IP | ${{p.k}} K | QS:${{(p.qs*100).toFixed(0)}}% | W:${{(p.win*100).toFixed(0)}}% | ERA:${{p.era}} | WHIP:${{p.whip}}</div>
         <div style="font-size:.65rem;margin-top:3px">${{grade}}</div>
       </div>
@@ -1053,7 +1075,7 @@ def main():
 
     html = build_html(batters_json, pitchers_json, teams_json, games_json,
                       weekly_pitchers, weekly_batters, streaming_by_day,
-                      roster, taken, build_date, available_dates)
+                      roster, taken, build_date, available_dates, today_str)
 
     with open(OUTPUT_FILE, 'w') as f: f.write(html)
     print(f"  Done — {len(html)//1024} KB written to index.html")
