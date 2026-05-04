@@ -115,46 +115,56 @@ def process_games_day(df, date_str):
     return games
 
 def build_weekly_pitcher_data(df_pitchers, roster):
-    """For each rostered SP/RP, find all their starts across available dates."""
+    """For each rostered SP/RP, find all their starts across all available dates."""
     if df_pitchers is None: return {}
     df = df_pitchers.copy()
-    df['Team'] = df['Team'].str.strip()
+    df['Team']     = df['Team'].str.strip()
+    df['Opponent'] = df['Opponent'].str.strip()
     df['ERA_proj']  = (df['RunsAllowed'] / df['Innings'] * 9).round(3)
     df['WHIP_proj'] = ((df['HitsAllowed'] + df['Walks']) / df['Innings']).round(3)
+    df['K9']        = (df['Strikeouts'] / df['Innings'] * 9).round(2)
 
     my_pitchers = [p for p in roster.get('players', []) if p.get('pos') in ['SP','RP']]
     result = {}
 
-    def nm(s): return s.lower().replace(' ','').replace('.','').replace("'",'')
+    def nm(s): return s.lower().replace(' ','').replace('.','').replace("'",'').replace('-','')
 
     for rp in my_pitchers:
-        matches = df[df['FullName'].apply(lambda x: nm(rp['name']) in nm(x) or nm(x) in nm(rp['name']))]
-        if matches.empty: continue
+        rn = nm(rp['name'])
+        matches = df[df['FullName'].apply(lambda x: rn in nm(x) or nm(x) in rn)]
+        if matches.empty:
+            print(f"  WARNING: No pitcher data found for '{rp['name']}'")
+            continue
         starts = []
         for _, row in matches.iterrows():
             starts.append({
                 'date': str(row['GameDate']),
-                'opp': row['Opponent'],
-                'hand': row.get('PitcherHand','?'),
-                'ip': round(row['Innings'], 1),
-                'k': round(row['Strikeouts'], 1),
-                'qs': round(row['QualityStart'], 3),
-                'win': round(row['WinPct'], 3),
-                'era': round(row['ERA_proj'], 2),
-                'whip': round(row['WHIP_proj'], 3),
+                'opp':  str(row['Opponent']).strip(),
+                'hand': str(row.get('PitcherHand','?')),
+                'ip':   round(float(row['Innings']), 1),
+                'k':    round(float(row['Strikeouts']), 1),
+                'k9':   round(float(row['K9']), 1),
+                'qs':   round(float(row['QualityStart']), 3),
+                'win':  round(float(row['WinPct']), 3),
+                'era':  round(float(row['ERA_proj']), 2),
+                'whip': round(float(row['WHIP_proj']), 3),
             })
         starts.sort(key=lambda x: x['date'])
-        total_ip = round(sum(s['ip'] for s in starts), 1)
+        total_ip  = round(sum(s['ip'] for s in starts), 1)
+        total_k   = round(sum(s['k']  for s in starts), 1)
+        avg_era   = round(sum(s['era']  for s in starts)/len(starts), 2) if starts else 0
+        avg_whip  = round(sum(s['whip'] for s in starts)/len(starts), 3) if starts else 0
         result[rp['name']] = {
-            'pos': rp['pos'],
-            'team': rp.get('team',''),
-            'starts': starts,
+            'pos':      rp.get('pos','SP'),
+            'team':     rp.get('team',''),
+            'starts':   starts,
             'total_ip': total_ip,
-            'total_k': round(sum(s['k'] for s in starts), 1),
-            'avg_era': round(sum(s['era'] for s in starts)/len(starts), 2) if starts else 0,
-            'avg_whip': round(sum(s['whip'] for s in starts)/len(starts), 3) if starts else 0,
+            'total_k':  total_k,
+            'avg_era':  avg_era,
+            'avg_whip': avg_whip,
         }
     return result
+
 
 def build_weekly_batter_data(df_batters):
     """Aggregate batter projections across all available dates."""
@@ -176,24 +186,35 @@ def build_weekly_batter_data(df_batters):
     return agg.sort_values('Hits', ascending=False).to_dict('records')
 
 def build_streaming_by_day(df_pitchers):
-    """For each available date, list the best free-agent streaming SPs."""
+    """For each available date, list all SPs as streaming candidates."""
     if df_pitchers is None: return {}
     df = df_pitchers.copy()
-    df['Team'] = df['Team'].str.strip()
+    df['Team']     = df['Team'].str.strip()
+    df['Opponent'] = df['Opponent'].str.strip()
     df['ERA_proj']  = (df['RunsAllowed'] / df['Innings'] * 9).round(3)
     df['WHIP_proj'] = ((df['HitsAllowed'] + df['Walks']) / df['Innings']).round(3)
+    df['K9']        = (df['Strikeouts'] / df['Innings'] * 9).round(2)
     result = {}
     for date_str in sorted(df['GameDate'].unique()):
         day = df[df['GameDate'] == date_str]
-        starters = day[day['QualityStart'] >= 0.20].sort_values('QualityStart', ascending=False)
+        # Include all starters with any QS probability - let JS filter by availability
+        starters = day[day['QualityStart'] >= 0.15].sort_values('QualityStart', ascending=False)
         result[str(date_str)] = [{
-            'name': row['FullName'], 'team': row['Team'].strip(),
-            'opp': row['Opponent'].strip(), 'hand': row.get('PitcherHand','?'),
-            'ip': round(row['Innings'],1), 'k': round(row['Strikeouts'],1),
-            'qs': round(row['QualityStart'],3), 'win': round(row['WinPct'],3),
-            'era': round(row['ERA_proj'],2), 'whip': round(row['WHIP_proj'],3),
+            'name':  row['FullName'],
+            'team':  row['Team'],
+            'opp':   row['Opponent'],
+            'hand':  str(row.get('PitcherHand','?')),
+            'side':  str(row.get('Side','?')),
+            'ip':    round(float(row['Innings']), 1),
+            'k':     round(float(row['Strikeouts']), 1),
+            'k9':    round(float(row['K9']), 1),
+            'qs':    round(float(row['QualityStart']), 3),
+            'win':   round(float(row['WinPct']), 3),
+            'era':   round(float(row['ERA_proj']), 2),
+            'whip':  round(float(row['WHIP_proj']), 3),
         } for _, row in starters.iterrows()]
     return result
+
 
 def load_roster():
     if not os.path.exists(ROSTER_FILE): return {"team_name":"My Team","players":[]}
@@ -753,8 +774,13 @@ const ESPN_IP_LIMIT = 12;
 function initWeekly(){{
   // Pitcher starts cards
   const el=document.getElementById('wp-cards');
-  if(!Object.keys(WP).length){{el.innerHTML='<div class="es"><div>Upload multiple days of BallparkPal data to see weekly pitcher schedules</div></div>';return;}}
-  const allDates=AVAILABLE_DATES;
+  if(!Object.keys(WP).length){{
+    el.innerHTML='<div class="es"><div class="ic">⚾</div><div>No rostered pitchers found in today\'s data</div><div style="font-size:.75rem;margin-top:8px;color:var(--text2)">Make sure your pitcher names in roster.json match BallparkPal exactly. Upload multiple days for the full weekly schedule.</div></div>';
+    return;
+  }}
+  // Use all dates in WP data (includes future starts), not just today
+  const wpDates=[...new Set(Object.values(WP).flatMap(p=>p.starts.map(s=>s.date)))].sort();
+  const allDates=wpDates.length?wpDates:AVAILABLE_DATES;
   el.innerHTML=Object.entries(WP).sort((a,b)=>b[1].total_ip-a[1].total_ip).map(([name,data])=>{{
     const ipPct=Math.min(data.total_ip/ESPN_IP_LIMIT*100,100);
     const over=data.total_ip>ESPN_IP_LIMIT;
@@ -762,10 +788,8 @@ function initWeekly(){{
     const dots=allDates.map(d=>{{
       const s=data.starts.find(x=>x.date===d);
       if(!s)return`<span class="start-dot no-start" title="${{d}}: No start"></span>`;
-      const mr=TM[s.opp];
-      const allK=mr?Object.values(TM).map(t=>t.k):[];
-      const avgK=allK.length?allK.reduce((a,b)=>a+b,0)/allK.length:5;
-      const dotCls=mr&&mr.k>avgK*1.15?'tough':mr&&mr.k<avgK*0.85?'easy':'avg';
+      const pmr=getPitcherMatchup(s.opp);
+      const dotCls=pmr.label==='Easy'?'easy':pmr.label==='Tough'||pmr.label==='Hard'?'tough':'avg';
       return`<span class="start-dot ${{dotCls}}" title="${{d}}: vs ${{s.opp}} | ${{s.ip}} IP | ${{s.k}} K | QS:${{(s.qs*100).toFixed(0)}}% | ERA:${{s.era}}"></span>`;
     }}).join('');
     return`<div class="pitcher-week-card ${{cardCls}}">
@@ -832,17 +856,22 @@ function selectStreamDay(d,el){{
   currentStreamDay=d;
   document.querySelectorAll('.day-tab').forEach(x=>x.classList.remove('active'));
   el.classList.add('active');
-  const pitchers=(SD[d]||[]).filter(p=>isFreeAgent(p.name));
+  // For streaming, check if pitcher name is free (not on my roster, not taken by opponent)
+  const pitchers=(SD[d]||[]).filter(p=>{{
+    const n=norm(p.name);
+    const onMine=MR.some(r=>n.includes(norm(r.name))||norm(r.name).includes(n));
+    const onTaken=TAKEN_NORM.some(t=>n.includes(t)||t.includes(n));
+    return !onMine && !onTaken;
+  }});
   if(!pitchers.length){{document.getElementById('stream-out').innerHTML='<div class="es"><div>No free agent starters with QS &gt; 20% on this date</div></div>';return;}}
   // Score them
   const scored=pitchers.map(p=>{{
-    const mr=TM[p.opp]||{{k:5,runs:4,hr:1}};
-    const allK=Object.values(TM).map(t=>t.k);const avgK=allK.reduce((a,b)=>a+b,0)/allK.length||5;
-    const mBonus=mr.k<avgK*0.85?1.15:mr.k>avgK*1.15?0.87:1;
-    const sc=((p.k*mw('K')*.5+p.qs*mw('QS')*8+p.win*mw('W')*8+Math.max(0,(5-p.era))*mw('ERA')*.3+Math.max(0,(1.5-p.whip))*mw('WHIP')*.5)/10)*mBonus;
-    const mLabel=mr.k<avgK*0.85?'Easy':mr.k>avgK*1.15?'Hard':'Avg';
-    const mCls=mr.k<avgK*0.85?'mup-easy':mr.k>avgK*1.15?'mup-tough':'mup-avg';
-    return{{...p,sc,mLabel,mCls}};
+    const mr=getPitcherMatchup(p.opp);
+    const mBonus=mr.label==='Easy'?1.10:mr.label==='Tough'?0.92:mr.label==='Fav'?1.05:mr.label==='Hard'?0.96:1.0;
+    const eB=Math.max(0,(5-p.era))*mw('ERA')*.3;
+    const wB=Math.max(0,(1.5-p.whip))*mw('WHIP')*.5;
+    const sc=((p.k*mw('K')*.5+p.qs*mw('QS')*8+p.win*mw('W')*8+eB+wB)/10)*mBonus;
+    return{{...p,sc,mLabel:mr.label,mCls:mr.cls}};
   }}).sort((a,b)=>b.sc-a.sc);
 
   const label=new Date(d+'T12:00:00').toLocaleDateString('en-US',{{weekday:'long',month:'long',day:'numeric'}});
@@ -852,7 +881,7 @@ function selectStreamDay(d,el){{
     return`<div class="rc ${{i<3?'str':i<6?'':'sit'}}">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--text2);min-width:28px">${{i+1}}</div>
       <div class="rm">
-        <div class="rn">${{p.name}} <span class="tb">${{p.team}}</span> <span class="hb">${{p.hand}}</span> <span class="${{p.mCls}}">${{p.mLabel}} matchup</span></div>
+        <div class="rn">${{p.name}} <span class="tb">${{p.team}}</span> <span class="hb">${{p.hand}}</span> <span class="${{p.mCls}}">${{p.mLabel}})</span></div>
         <div class="rd">vs ${{p.opp}} | ${{p.ip}} IP | ${{p.k}} K | QS:${{(p.qs*100).toFixed(0)}}% | W:${{(p.win*100).toFixed(0)}}% | ERA:${{p.era}} | WHIP:${{p.whip}}</div>
         <div style="font-size:.65rem;margin-top:3px">${{grade}}</div>
       </div>
