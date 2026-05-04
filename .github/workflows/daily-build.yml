@@ -1,14 +1,20 @@
 name: Daily Fantasy Optimizer Build
 
 on:
+  # Runs every day at 11:00 AM Eastern (15:00 UTC)
+  # This is after BallparkPal typically posts morning projections
   schedule:
     - cron: '0 15 * * *'
 
+  # Also runs whenever you push new Excel files to main
   push:
     paths:
+      - 'data/**/*.xlsx'
       - 'data/BallparkPal_*.xlsx'
       - 'roster.json'
+      - 'taken.json'
 
+  # Lets you trigger manually from GitHub Actions tab
   workflow_dispatch:
 
 jobs:
@@ -33,16 +39,22 @@ jobs:
           echo "Files in /data:"
           ls -la data/ || echo "No data directory found"
 
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
       - name: Build optimizer
         run: |
           python scripts/build.py
+        env:
+          TODAY: ${{ steps.date.outputs.date }}
 
       - name: Commit and push updated index.html
         run: |
           git config --global user.name  "Fantasy Optimizer Bot"
           git config --global user.email "bot@github-actions"
           git add index.html
-          git diff --staged --quiet || git commit -m "Daily build: $(date +'%B %d, %Y')"
+          git diff --staged --quiet || git commit -m "🤖 Daily build: $(date +'%B %d, %Y')"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
