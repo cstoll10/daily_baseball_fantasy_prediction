@@ -75,28 +75,31 @@ def process_pitchers_day(df, date_str):
     df['Team'] = df['Team'].str.strip(); df['Opponent'] = df['Opponent'].str.strip()
     df['ERA_proj']  = (df['RunsAllowed'] / df['Innings'] * 9).round(3)
     df['WHIP_proj'] = ((df['HitsAllowed'] + df['Walks']) / df['Innings']).round(3)
+    df['K9']        = (df['Strikeouts'] / df['Innings'] * 9).round(2)
     cols = ['PlayerId','FullName','Team','Opponent','PitcherHand','Side',
-            'Innings','WinPct','QualityStart','Strikeouts',
-            'ERA_proj','WHIP_proj','RunsAllowed','HitsAllowed','Walks','PointsDK','PointsFD']
+            'Innings','WinPct','QualityStart','Strikeouts','K9',
+            'ERA_proj','WHIP_proj','RunsAllowed','HitsAllowed','Walks',
+            'HomeRunsAllowed','PointsDK','PointsFD']
     return df[cols].round(3).to_dict('records')
 
 def process_teams_day(df, date_str):
+    """
+    Build per-team context for matchup ratings.
+    Returns data keyed by BATTING team — what environment that team is hitting into.
+    """
     df = df[df['GameDate'] == date_str].copy()
     if df.empty: return {}
     df['Team'] = df['Team'].str.strip(); df['Opponent'] = df['Opponent'].str.strip()
-    ratings = {}
+    result = {}
     for _, row in df.iterrows():
-        opp = row['Opponent']
-        if opp not in ratings:
-            ratings[opp] = {'runs': [], 'hr': [], 'k': []}
-        ratings[opp]['runs'].append(row['Runs'])
-        ratings[opp]['hr'].append(row['HomeRuns'])
-        ratings[opp]['k'].append(row['Strikeouts'])
-    return {team: {
-        'runs': round(sum(v['runs'])/len(v['runs']), 3),
-        'hr':   round(sum(v['hr'])/len(v['hr']), 3),
-        'k':    round(sum(v['k'])/len(v['k']), 3)
-    } for team, v in ratings.items()}
+        team = row['Team']
+        result[team] = {
+            'runs':       round(row['Runs'], 3),         # Team's projected runs (already vs their pitcher)
+            'hr':         round(row['HomeRuns'], 3),
+            'k':          round(row['Strikeouts'], 3),   # Team's projected K (lineup quality)
+            'side':       row['Side'],                    # H or A
+        }
+    return result
 
 def process_games_day(df, date_str):
     df = df[df['GameDate'] == date_str].copy()
@@ -535,20 +538,124 @@ function isFreeAgent(n){{return !isMyPlayer(n)&&!isTaken(n);}}
 function rowClass(n){{if(isMyPlayer(n))return isStarting(n)?'my-start':'my-bench';if(isTaken(n))return'taken';return'';}}
 function statusTag(n){{if(isMyPlayer(n))return isStarting(n)?'<span class="ts">STARTING</span>':'<span class="tsi">BENCHED</span>';if(isTaken(n))return'<span class="ttk">TAKEN</span>';return'<span class="ta">FREE</span>';}}
 
-function getMatchupRating(team,type){{
-  const opp=TM[team];if(!opp)return{{label:'?',cls:'mup-avg',val:0}};
-  const val=type==='bat'?opp.runs:opp.k;
-  const allVals=Object.values(TM).map(t=>type==='bat'?t.runs:t.k);
-  const avg=allVals.reduce((a,b)=>a+b,0)/allVals.length;
-  const std=Math.sqrt(allVals.map(v=>(v-avg)**2).reduce((a,b)=>a+b,0)/allVals.length)||1;
-  const z=(val-avg)/std;
-  if(type==='bat'){{if(z>0.5)return{{label:'Easy',cls:'mup-easy',val}};if(z<-0.5)return{{label:'Tough',cls:'mup-tough',val}};return{{label:'Avg',cls:'mup-avg',val}};}}
-  else{{if(z>0.5)return{{label:'Hard',cls:'mup-tough',val}};if(z<-0.5)return{{label:'Easy',cls:'mup-easy',val}};return{{label:'Avg',cls:'mup-avg',val}};}}
+// Build pitcher lookup: opponent team -> their starting pitcher today
+function getPitcherVs(battingTeam) {{
+  return AP.find(p => p.Opponent === battingTeam) || null;
 }}
-function matchupTag(team,type){{const m=getMatchupRating(team,type);return`<span class="${{m.cls}}">${{m.label}}</span>`;}}
+
+// Platoon advantage: does batter handedness vs pitcher hand give an edge?
+// R batter vs L pitcher = advantage, L batter vs R pitcher = advantage
+function platoonBonus(batterStand, pitcherHand) {{
+  if (!batterStand || !pitcherHand) return 0;
+  if (batterStand === 'S') return 0.05; // switch hitters always get some benefit
+  if (batterStand === 'R' && pitcherHand === 'L') return 0.10;
+  if (batterStand === 'L' && pitcherHand === 'R') return 0.10;
+  return -0.05; // same hand = slight disadvantage
+}}
+
+// Home field bonus
+function homeBonus(side) {{
+  return side === 'H' ? 0.06 : 0;
+}}
+
+// Core matchup rating for a BATTER based on opposing pitcher quality
+// Uses pitcher ERA/WHIP/K9 relative to league average
+// Threshold tightened to ±1.0 std so fewer players get Easy/Tough
+function getBatterMatchup(battingTeam) {{
+  const pitcher = getPitcherVs(battingTeam);
+  if (!pitcher) return {{ label: '?', cls: 'mup-avg', score: 0, pitcher: null }};
+
+  const allERA  = AP.map(p => p.ERA_proj).filter(Boolean);
+  const avgERA  = allERA.reduce((a,b)=>a+b,0)/allERA.length;
+  const stdERA  = Math.sqrt(allERA.map(v=>(v-avgERA)**2).reduce((a,b)=>a+b,0)/allERA.length) || 0.5;
+
+  const allK9   = AP.map(p => p.K9).filter(Boolean);
+  const avgK9   = allK9.reduce((a,b)=>a+b,0)/allK9.length;
+  const stdK9   = Math.sqrt(allK9.map(v=>(v-avgK9)**2).reduce((a,b)=>a+b,0)/allK9.length) || 1;
+
+  // High ERA = easier for batters, low K9 = easier for batters
+  const eraZ  = (pitcher.ERA_proj - avgERA) / stdERA;   // positive = pitcher is bad = easy
+  const k9Z   = (avgK9 - pitcher.K9) / stdK9;            // positive = pitcher has low K = easy
+  const combo = (eraZ + k9Z) / 2;
+
+  // Tighter threshold - only flag truly easy/tough matchups
+  let label, cls;
+  if (combo > 1.0)       {{ label = 'Easy';  cls = 'mup-easy'; }}
+  else if (combo < -1.0) {{ label = 'Tough'; cls = 'mup-tough'; }}
+  else if (combo > 0.4)  {{ label = 'Fav';   cls = 'mup-avg'; }}
+  else if (combo < -0.4) {{ label = 'Hard';  cls = 'mup-avg'; }}
+  else                   {{ label = 'Avg';   cls = 'mup-avg'; }}
+
+  return {{ label, cls, score: combo, pitcher }};
+}}
+
+// Matchup rating for a PITCHER based on opposing lineup
+function getPitcherMatchup(opponentTeam) {{
+  const tm = TM[opponentTeam];
+  if (!tm) return {{ label: '?', cls: 'mup-avg', score: 0 }};
+
+  const allRuns = Object.values(TM).map(t=>t.runs).filter(Boolean);
+  const avgRuns = allRuns.reduce((a,b)=>a+b,0)/allRuns.length;
+  const stdRuns = Math.sqrt(allRuns.map(v=>(v-avgRuns)**2).reduce((a,b)=>a+b,0)/allRuns.length) || 0.5;
+
+  const z = (tm.runs - avgRuns) / stdRuns; // high runs = tough for pitcher
+  let label, cls;
+  if (z > 1.0)       {{ label = 'Tough'; cls = 'mup-tough'; }}
+  else if (z < -1.0) {{ label = 'Easy';  cls = 'mup-easy'; }}
+  else if (z > 0.4)  {{ label = 'Hard';  cls = 'mup-avg'; }}
+  else if (z < -0.4) {{ label = 'Fav';   cls = 'mup-avg'; }}
+  else               {{ label = 'Avg';   cls = 'mup-avg'; }}
+
+  return {{ label, cls, score: -z }};
+}}
+
+function matchupTag(team, type) {{
+  const m = type === 'bat' ? getBatterMatchup(team) : getPitcherMatchup(team);
+  return `<span class="${{m.cls}}">${{m.label}}</span>`;
+}}
+
+// Keep getMatchupRating as a compatibility alias
+function getMatchupRating(team, type) {{
+  return type === 'bat' ? getBatterMatchup(team) : getPitcherMatchup(team);
+}}
 function mw(cat){{return MS[cat]==='winning'?CW[cat]*0.4:MS[cat]==='losing'?CW[cat]*1.6:CW[cat];}}
-function bScore(b){{const mr=getMatchupRating(b.Opponent,'bat');const mb=mr.label==='Easy'?1.15:mr.label==='Tough'?0.87:1;return((b.Hits*mw('H')+b.Runs*mw('R')+b.HomeRuns*mw('HR')*2+b.TB*mw('TB')*.5+b.SB*mw('SB')*1.5+b.OBP*mw('OBP')*3)/10)*mb;}}
-function pScore(p){{const mr=getMatchupRating(p.Opponent,'pit');const mb=mr.label==='Easy'?1.15:mr.label==='Hard'?0.87:1;const eB=Math.max(0,(5-p.ERA_proj))*mw('ERA')*.3;const wB=Math.max(0,(1.5-p.WHIP_proj))*mw('WHIP')*.5;return((p.Strikeouts*mw('K')*.5+p.QualityStart*mw('QS')*8+p.WinPct*mw('W')*8+eB+wB)/10)*mb;}}
+function bScore(b) {{
+  // Base fantasy value from projections (BallparkPal already factors in opposing pitcher)
+  const base = (b.Hits*mw('H') + b.Runs*mw('R') + b.HomeRuns*mw('HR')*2 +
+                b.TB*mw('TB')*.5 + b.SB*mw('SB')*1.5 + b.OBP*mw('OBP')*3) / 10;
+
+  // Matchup bonus: based on opposing pitcher ERA/K9 vs league avg
+  // Kept small (max ±10%) since BallparkPal projections already include pitcher
+  const mr = getBatterMatchup(b.Opponent);
+  const mBonus = mr.label==='Easy' ? 1.10 : mr.label==='Tough' ? 0.92 :
+                 mr.label==='Fav'  ? 1.05 : mr.label==='Hard'  ? 0.96 : 1.0;
+
+  // Platoon bonus: batter hand vs pitcher hand (not in BallparkPal projections)
+  const pitcher = mr.pitcher;
+  const pBonus = pitcher ? (1 + platoonBonus(b.BatterStand, pitcher.PitcherHand)) : 1.0;
+
+  // Home field bonus (small but real)
+  const hBonus = 1 + homeBonus(b.Side);
+
+  return base * mBonus * pBonus * hBonus;
+}}
+
+function pScore(p) {{
+  const eB = Math.max(0,(5-p.ERA_proj))*mw('ERA')*.3;
+  const wB = Math.max(0,(1.5-p.WHIP_proj))*mw('WHIP')*.5;
+  const base = (p.Strikeouts*mw('K')*.5 + p.QualityStart*mw('QS')*8 +
+                p.WinPct*mw('W')*8 + eB + wB) / 10;
+
+  // Opponent lineup quality bonus
+  const mr = getPitcherMatchup(p.Opponent);
+  const mBonus = mr.label==='Easy'  ? 1.10 : mr.label==='Tough' ? 0.92 :
+                 mr.label==='Fav'   ? 1.05 : mr.label==='Hard'  ? 0.96 : 1.0;
+
+  // Home pitchers have slight advantage
+  const hBonus = 1 + homeBonus(p.Side);
+
+  return base * mBonus * hBonus;
+}}
 function cs(v,lo,mid,hi){{return v>=hi?'good':v>=mid?'avg':v<=lo?'bad':'';}}
 
 function sw(t,el){{
@@ -604,7 +711,7 @@ function rB(){{
   if(hnd)d=d.filter(b=>pitHands[b.Opponent]===hnd);
   d.sort((a,b)=>sk==='score'?bScore(b)-bScore(a):b[sk]-a[sk]);
   const mH=Math.max(...d.map(b=>b.Hits),.001);
-  document.getElementById('btb').innerHTML=d.map(b=>{{const sc=bScore(b).toFixed(1);const rc=rowClass(b.FullName);const bw=((b.Hits/mH)*40).toFixed(0);return`<tr class="${{rc}}"><td class="sc">${{sc}}</td><td style="font-weight:500;white-space:nowrap">${{b.FullName}}</td><td>${{statusTag(b.FullName)}}</td><td><span class="tb">${{b.Team}}</span></td><td style="color:var(--text2);font-size:.72rem">vs ${{b.Opponent}}</td><td>${{matchupTag(b.Opponent,'bat')}}</td><td><span class="pb">${{b.BattingPosition}}</span></td><td><div style="display:flex;align-items:center;gap:4px"><div style="height:3px;border-radius:2px;background:var(--accent);width:${{bw}}px;min-width:2px"></div><span class="sv ${{cs(b.Hits,.6,.8,1)}}">${{b.Hits.toFixed(3)}}</span></div></td><td class="sv ${{cs(b.Runs,.3,.45,.55)}}">${{b.Runs.toFixed(3)}}</td><td class="sv ${{cs(b.HomeRuns,.08,.13,.18)}}">${{b.HomeRuns.toFixed(3)}}</td><td class="sv ${{cs(b.TB,1,1.4,1.7)}}">${{b.TB.toFixed(3)}}</td><td class="sv ${{cs(b.SB,.01,.05,.12)}}">${{b.SB.toFixed(3)}}</td><td class="sv ${{cs(b.OBP,.28,.33,.38)}}">${{b.OBP.toFixed(3)}}</td><td style="color:var(--text2);font-size:.72rem">${{b.PlateAppearances.toFixed(1)}}</td></tr>`;}}).join('');
+  document.getElementById('btb').innerHTML=d.map(b=>{{const sc=bScore(b).toFixed(1);const rc=rowClass(b.FullName);const bw=((b.Hits/mH)*40).toFixed(0);return`<tr class="${{rc}}"><td class="sc">${{sc}}</td><td style="font-weight:500;white-space:nowrap">${{b.FullName}}</td><td>${{statusTag(b.FullName)}}</td><td><span class="tb">${{b.Team}}</span></td><td style="color:var(--text2);font-size:.72rem">vs ${{b.Opponent}}</td><td>${{(()=>{{const bm=getBatterMatchup(b.Opponent);const pn=bm.pitcher?(bm.pitcher.FullName.split(' ').pop()+'('+bm.pitcher.PitcherHand+')'):'?';return '<span class="'+bm.cls+'">'+bm.label+'</span> <span style="font-size:.62rem;color:var(--text2)">'+pn+'</span>';}})()}}</td><td><span class="pb">${{b.BattingPosition}}</span></td><td><div style="display:flex;align-items:center;gap:4px"><div style="height:3px;border-radius:2px;background:var(--accent);width:${{bw}}px;min-width:2px"></div><span class="sv ${{cs(b.Hits,.6,.8,1)}}">${{b.Hits.toFixed(3)}}</span></div></td><td class="sv ${{cs(b.Runs,.3,.45,.55)}}">${{b.Runs.toFixed(3)}}</td><td class="sv ${{cs(b.HomeRuns,.08,.13,.18)}}">${{b.HomeRuns.toFixed(3)}}</td><td class="sv ${{cs(b.TB,1,1.4,1.7)}}">${{b.TB.toFixed(3)}}</td><td class="sv ${{cs(b.SB,.01,.05,.12)}}">${{b.SB.toFixed(3)}}</td><td class="sv ${{cs(b.OBP,.28,.33,.38)}}">${{b.OBP.toFixed(3)}}</td><td style="color:var(--text2);font-size:.72rem">${{b.PlateAppearances.toFixed(1)}}</td></tr>`;}}).join('');
 }}
 
 function rP(){{
@@ -620,7 +727,7 @@ function rP(){{
   const mwp=parseFloat(document.getElementById('f-minw')?.value||0)/100;
   if(mip)d=d.filter(p=>p.Innings>=mip);if(mera<99)d=d.filter(p=>p.ERA_proj<=mera);if(mwp)d=d.filter(p=>p.WinPct>=mwp);
   d.sort((a,b)=>{{if(sk==='score')return pScore(b)-pScore(a);if(sk==='ERA_proj'||sk==='WHIP_proj')return a[sk]-b[sk];return b[sk]-a[sk];}});
-  document.getElementById('ptb').innerHTML=d.map(p=>{{const sc=pScore(p).toFixed(1);const rc=rowClass(p.FullName);return`<tr class="${{rc}}"><td class="sc">${{sc}}</td><td style="font-weight:500;white-space:nowrap">${{p.FullName}}</td><td>${{statusTag(p.FullName)}}</td><td><span class="tb">${{p.Team}}</span></td><td style="color:var(--text2);font-size:.72rem">vs ${{p.Opponent}}</td><td>${{matchupTag(p.Opponent,'pit')}}</td><td><span class="hb">${{p.PitcherHand}}</span></td><td style="font-family:'DM Mono',monospace;font-size:.76rem">${{p.Innings.toFixed(1)}}</td><td class="sv ${{cs(p.Strikeouts,4,6,8)}}">${{p.Strikeouts.toFixed(1)}}</td><td class="sv ${{cs(p.WinPct,.15,.25,.35)}}">${{(p.WinPct*100).toFixed(0)}}%</td><td class="sv ${{cs(p.QualityStart,.2,.35,.5)}}">${{(p.QualityStart*100).toFixed(0)}}%</td><td class="sv ${{cs(5-p.ERA_proj,-2,-.5,.5)}}">${{p.ERA_proj.toFixed(2)}}</td><td class="sv ${{cs(1.5-p.WHIP_proj,-.2,0,.3)}}">${{p.WHIP_proj.toFixed(3)}}</td></tr>`;}}).join('');
+  document.getElementById('ptb').innerHTML=d.map(p=>{{const sc=pScore(p).toFixed(1);const rc=rowClass(p.FullName);return`<tr class="${{rc}}"><td class="sc">${{sc}}</td><td style="font-weight:500;white-space:nowrap">${{p.FullName}}</td><td>${{statusTag(p.FullName)}}</td><td><span class="tb">${{p.Team}}</span></td><td style="color:var(--text2);font-size:.72rem">vs ${{p.Opponent}}</td><td>${{(()=>{{const pm=getPitcherMatchup(p.Opponent);return '<span class="'+pm.cls+'">'+pm.label+'</span>';}})()}}</td><td><span class="hb">${{p.PitcherHand}}</span></td><td style="font-family:'DM Mono',monospace;font-size:.76rem">${{p.Innings.toFixed(1)}}</td><td class="sv ${{cs(p.Strikeouts,4,6,8)}}">${{p.Strikeouts.toFixed(1)}}</td><td class="sv ${{cs(p.WinPct,.15,.25,.35)}}">${{(p.WinPct*100).toFixed(0)}}%</td><td class="sv ${{cs(p.QualityStart,.2,.35,.5)}}">${{(p.QualityStart*100).toFixed(0)}}%</td><td class="sv ${{cs(5-p.ERA_proj,-2,-.5,.5)}}">${{p.ERA_proj.toFixed(2)}}</td><td class="sv ${{cs(1.5-p.WHIP_proj,-.2,0,.3)}}">${{p.WHIP_proj.toFixed(3)}}</td></tr>`;}}).join('');
 }}
 
 function rW(){{
