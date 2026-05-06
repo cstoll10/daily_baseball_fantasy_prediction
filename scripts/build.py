@@ -565,8 +565,8 @@ const BUILD_DATE_ISO = "{build_date_iso}";
 let MR = ROSTER_DATA.players.map((p,i)=>({{...p,id:i}}));
 let CW = {{H:5,R:5,HR:7,TB:5,SB:6,OBP:4,K:6,QS:7,W:6,ERA:5,WHIP:5}};
 let MS = {{H:'close',R:'close',HR:'close',TB:'close',SB:'close',OBP:'close',K:'close',QS:'close',W:'close',ERA:'close',WHIP:'close'}};
-const IL_PLAYERS = ['George Springer','Jhoan Duran','Hunter Brown'];
-const IL_NOTES   = {{'George Springer':'IL10 | OF | TOR','Jhoan Duran':'IL15 | RP | PHI','Hunter Brown':'IL15 | SP | HOU'}};
+const IL_PLAYERS = ['Hunter Brown'];
+const IL_NOTES   = {{'Hunter Brown':'IL15 | SP | HOU'}};
 
 function norm(s){{return s.toLowerCase().replace(/[^a-z0-9]/g,'');}}
 const TAKEN_NORM=TAKEN_LIST.map(norm);
