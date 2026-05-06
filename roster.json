@@ -1,9 +1,9 @@
 {
   "team_name": "cstoll10",
   "players": [
-    { "name": "Dalton Rushing",      "team": "LAD", "pos": "C",    "start": true },
+    { "name": "Will Smith",          "team": "LAD", "pos": "C",    "start": true },
     { "name": "Matt Olson",          "team": "ATL", "pos": "1B",   "start": true  },
-    { "name": "Brandon Lowe",        "team": "PIT", "pos": "2B",   "start": true  },
+    { "name": "Bryson Stott",        "team": "PHI", "pos": "2B",   "start": true },
     { "name": "Junior Caminero",     "team": "TB",  "pos": "3B",   "start": true  },
     { "name": "Zach Neto",           "team": "LAA", "pos": "SS",   "start": true  },
     { "name": "Kyle Tucker",         "team": "LAD", "pos": "OF",   "start": true  },
@@ -11,27 +11,30 @@
     { "name": "George Springer",     "team": "TOR", "pos": "OF",   "start": true },
     { "name": "Jorge Soler",         "team": "LAA", "pos": "OF",   "start": true  },
     { "name": "Kevin McGonigle",     "team": "DET", "pos": "SS",   "start": true  },
-    { "name": "Will Smith",          "team": "LAD", "pos": "C",    "start": false },
-    { "name": "Bryson Stott",        "team": "PHI", "pos": "2B",   "start": false },
+    { "name": "JJ Bleday",           "team": "CIN", "pos": "OF",   "start": true  },
+
+    { "name": "Kyle Stowers",        "team": "MIA", "pos": "OF",    "start": false },
+    { "name": "Daulton Rushing",     "team": "LAD", "pos": "C",    "start": false },
+    { "name": "Brandon Lowe",        "team": "PIT", "pos": "2B",   "start": false  },
     { "name": "Mauricio Dubon",      "team": "ATL", "pos": "OF",   "start": false },
     { "name": "Kerry Carpenter",     "team": "DET", "pos": "OF",   "start": false },
+    
     { "name": "Tony Santillan",      "team": "CIN", "pos": "RP",   "start": true  },
     { "name": "Rico Garcia",         "team": "BAL", "pos": "RP",   "start": true  },
-    { "name": "Justin Wrobleski",    "team": "LAD", "pos": "SP",   "start": true },
-    { "name": "Eury Perez",          "team": "MIA", "pos": "SP",   "start": true  },
-    { "name": "Jacob Latz",          "team": "TEX", "pos": "RP",   "start": true  },
-    { "name": "Cade Cavalli",        "team": "WSH", "pos": "SP",   "start": true  },
-    { "name": "Cade Smith",          "team": "CLE", "pos": "RP",   "start": true  },
-    { "name": "Hogan Harris",        "team": "ATH", "pos": "RP",   "start": true  },
-    { "name": "Aaron Civale",        "team": "ATH",  "pos": "SP",   "start": true  },
-    { "name": "Tyler Kinley",         "team": "ATL", "pos": "RP",   "start": true },
     { "name": "Drew Rasmussen",      "team": "TB",  "pos": "SP",   "start": true },
+    { "name": "Eury Perez",          "team": "MIA", "pos": "SP",   "start": true  },
+    { "name": "Taj Bradley",         "team": "MIN", "pos": "SP",   "start": true  },
+    { "name": "Justin Wrobleski",    "team": "LAD", "pos": "SP",   "start": true },
+    { "name": "Bailey Ober",         "team": "MIN", "pos": "SP",   "start": true },
+    { "name": "Jhoan Duran",         "team": "PHI", "pos": "RP",   "start": true },
+    { "name": "Cade Smith",          "team": "CLE", "pos": "RP",   "start": true  },
+    { "name": "Tyler Kinley",         "team": "ATL", "pos": "RP",   "start": true },
+    { "name": "Jacob Latz",          "team": "TEX", "pos": "RP",   "start": true  },
 
     { "name": "Landen Roupp",        "team": "SF",  "pos": "SP",   "start": false  },
-    { "name": "Taj Bradley",         "team": "MIN", "pos": "SP",   "start": false  },
     { "name": "JR Ritchie",          "team": "ATL", "pos": "SP",   "start": false },
     { "name": "Nick Martinez",       "team": "TB",  "pos": "SP",   "start": false  },
-    { "name": "Jhoan Duran",         "team": "PHI", "pos": "RP",   "start": false },
+   
     { "name": "Hunter Brown",        "team": "HOU", "pos": "SP",   "start": false }
   ]
 }
