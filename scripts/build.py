@@ -565,8 +565,8 @@ const BUILD_DATE_ISO = "{build_date_iso}";
 let MR = ROSTER_DATA.players.map((p,i)=>({{...p,id:i}}));
 let CW = {{H:5,R:5,HR:7,TB:5,SB:6,OBP:4,K:6,QS:7,W:6,ERA:5,WHIP:5}};
 let MS = {{H:'close',R:'close',HR:'close',TB:'close',SB:'close',OBP:'close',K:'close',QS:'close',W:'close',ERA:'close',WHIP:'close'}};
-const IL_PLAYERS = ['Hunter Brown'];
-const IL_NOTES   = {{'Hunter Brown':'IL15 | SP | HOU'}};
+const IL_PLAYERS = ['George Springer','Jhoan Duran','Hunter Brown'];
+const IL_NOTES   = {{'George Springer':'IL10 | OF | TOR','Jhoan Duran':'IL15 | RP | PHI','Hunter Brown':'IL15 | SP | HOU'}};
 
 function norm(s){{return s.toLowerCase().replace(/[^a-z0-9]/g,'');}}
 const TAKEN_NORM=TAKEN_LIST.map(norm);
@@ -580,7 +580,12 @@ function statusTag(n){{if(isMyPlayer(n))return isStarting(n)?'<span class="ts">S
 
 // Build pitcher lookup: opponent team -> their starting pitcher today
 function getPitcherVs(battingTeam) {{
-  return AP.find(p => p.Opponent === battingTeam) || null;
+  // Find the pitcher whose TEAM is facing the batting team
+  // i.e. the pitcher whose Opponent = battingTeam (they are pitching TO that team)
+  // Wait - that's still wrong. We want: pitcher.Opponent === battingTeam
+  // means the pitcher is from another team, pitching AGAINST battingTeam.
+  // BUT we must exclude pitchers whose Team === battingTeam.
+  return AP.find(p => p.Opponent === battingTeam && p.Team !== battingTeam) || null;
 }}
 
 // Platoon advantage: does batter handedness vs pitcher hand give an edge?
